@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Criar uma viga de tamanho 4. Momento, inercia e area serao padrao.
-viga1 = ez.Viga(l=4)
+viga1 = ez.Viga(4)
 
 # Criar dois apoios. Um apoio fixo na ponta esquerda (x = 0) e outro livre no fim (x = 4)
 apoioA = ez.Apoio(x=0, tipo=2)
@@ -23,7 +23,6 @@ forcas = [forca1]
 estrut1 = ez.Eztrut(viga1, apoios, forcas)
 
 # Mostrar uma figura  da viga com os apoios e forcas
+# estrut1.mostrar_figura()
 
-estrut1.mostrar_figura()
-
-estrut1.estaticidade()
+print(estrut1.estaticidade())
