@@ -130,21 +130,21 @@ class Eztrut:
     def plotagem_apoios(self):
         """Plota apoios"""
         for apoio in self.apoios:
-            plt.plot([apoio.x, 0], [0, 0], 'bo')
+            plt.plot([apoio.x], [0], marker='^', markersize=12, fillstyle='none')
 
     def plotagem_forcasC(self):
         """Plota forcas concentradas"""
         ax = plt.gca()
         ymax = ax.get_ylim()[1]
         for forca in self.cargas:
-            if forca is ForcaC:
-                plt.annotate("F{}".format(abs(forca.f)), xy=(forca.x, 0), xytext=(
-                    forca.x, ymax / 3), arrowprops=dict(facecolor='black', shrink=0.15),
+            if isinstance(forca, ForcaC):
+                plt.annotate("{} kN".format(abs(forca.f / 1000)), xy=(forca.x, 0), xytext=(
+                   0, 40), textcoords='offset pixels', arrowprops=dict(arrowstyle="-|>"),
                              horizontalalignment='center')
 
     def plotagem_viga(self):
         """Plota viga"""
-        plt.plot([0, self.viga.comprimento], [0, 0], linewidth=10, alpha=0.5)
+        plt.plot([0, self.viga.comprimento], [0, 0], linewidth=4, alpha=0.3)
         plt.xlabel('x [m]')
         plt.ylabel('Momento fletor [kNm]')
 
@@ -154,4 +154,55 @@ class Eztrut:
         self.plotagem_viga()
         self.plotagem_apoios()
         self.plotagem_forcasC()
+        plt.margins(0.2, 0)
         plt.show()
+    
+    def cortante(self):
+        fx=0
+        fy=0
+        fz=0
+
+        # Soma das forcas
+        for carga in self.cargas:
+            if carga.tipo == 1:
+                fx+=carga.f
+            if carga.tipo == 2:
+                fy+=carga.f
+            if carga.tipo == 3:
+                fz+=carga.f
+        # vetor com a soma das forcas em todas direcoes
+        f = [fx, fy, fz]
+        
+
+    def reacao_apoio_biapoiada_isoestatica(self):
+        # determinar cortante em viga bi apoiada isoestatica
+
+        # momento causado pela forca no apoio A
+        m = 0
+
+        # Soma de forcas em y
+        fy = 0
+
+        # posicao do apoio A
+        x = self.apoios[0].x
+
+        for carga in self.cargas:
+            if carga.tipo == 2: # se a carga for do tipo vertical apenas
+                fy += carga.f
+                if carga.x < x: # se a forca estiver aa esquerda do apoio A
+                    m += carga.f * (x - carga.x)
+                else:
+                    m -= carga.f * (carga.x - x)
+
+        # A reacao do apoio B tem que ser m dividido pela distancia dos apoios
+        # (M = Rb * dist) -> (Rb = M / dist)
+        # Eh importante que os apoios estejam em ordem da esquerda para direita
+        dist = self.apoios[1].x - self.apoios[0].x
+        reacao_b = m / dist
+        reacao_a = fy - reacao_b
+
+        return "Soma de forcas em y: {} kN \n Apoio A: {} kN \n Apoio B: {} \n".format(
+            fy/1000, reacao_a/1000, reacao_b/1000)
+
+
+
