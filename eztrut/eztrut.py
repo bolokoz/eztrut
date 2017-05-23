@@ -130,8 +130,7 @@ class Eztrut:
         self.apoios = apoios
         self.cargas = cargas
         self.fig = plt.figure()
-        # self.reacao_a = 0
-        # self.reacao_b = 0
+        self.trechos = self.definir_trechos()
         self.dist = 0
         self.soma_forcas_x = 0
         self.soma_forcas_y = 0
@@ -140,6 +139,15 @@ class Eztrut:
         if self.estaticidade() > 3:
             print("! ------ERRO ------ ! \n" +
                   "! ------ ESTRUTURA HIPERESTATICA ----- ! \n")
+
+        for forca in self.cargas:
+            if isinstance(forca, ForcaC):
+                if forca.tipo == 1:
+                    self.soma_forcas_x += forca.f
+                elif forca.tipo == 2:
+                    self.soma_forcas_y += forca.f
+                elif forca.tipo == 3:
+                    self.soma_forcas_z += forca.f
 
     def __str__(self):
         return 'Viga = ' + str(self.viga) + " m, \n"
@@ -220,23 +228,29 @@ class Eztrut:
 
         return array_ordenado
 
+    def definir_trechos(self):
+        nos = [0]
+        # criar no para o fim da viga
+        nos.append(self.viga.comprimento)
+        # criar no para cada apoio
+        for apoio in self.apoios:
+            nos.append(apoio.x)
+        # criar no para cada forca concentrada ou distribuida
+        for forca_c in self.cargas:
+            if isinstance(forca_c, ForcaC):
+                nos.append(forca_c.x)
+            else:
+                for forca_d in self.cargas:
+                    nos.append(forca_d.x_i)
+                    nos.append(forca_d.x_f)
 
+        nos_unicos = list(set(nos))
+        trechos = [(nos_unicos[i],nos_unicos[i+1]) for i in range(len(nos_unicos)-1)]
+
+        return trechos
 
     def cortante(self):
-        fx = 0
-        fy = 0
-        fz = 0
-
-        # Soma das forcas
-        for carga in self.cargas:
-            if carga.tipo == 1:
-                fx += carga.f
-            if carga.tipo == 2:
-                fy += carga.f
-            if carga.tipo == 3:
-                fz += carga.f
-        # vetor com a soma das forcas em todas direcoes
-        f = [fx, fy, fz]
+        pass
 
 
     def reacao_apoio_biapoiada_isoestatica(self):
@@ -253,7 +267,7 @@ class Eztrut:
 
         for carga in self.cargas:
             if carga.tipo == 2: # se a carga for do tipo vertical apenas
-                self.soma_forcas_y += carga.f
+                # self.soma_forcas_y += carga.f
                 if carga.x < x: # se a forca estiver aa esquerda do apoio A
                     m += carga.f * (x - carga.x)
                 else:
@@ -273,12 +287,12 @@ class Eztrut:
     def memorial_reacao(self):
         from IPython.display import display, Math, Latex, Markdown
 
-        def forca_x(self):
+        def forca_x():
             completo = False
-            for forca in self.forcas:
+            for forca in self.cargas:
                 if forca.tipo == 1:
                     completo  = True
-            
+
             if completo == True:
                 frase = (r'\sum F_x = 0 \rightarrow R_a + R_b = ' +
                     str(self.soma_forcas_x) + r'\\')
@@ -287,12 +301,12 @@ class Eztrut:
 
             return frase
 
-        def forca_y(self):
+        def forca_y():
             completo = False
-            for forca in self.forcas:
+            for forca in self.cargas:
                 if forca.tipo == 2:
                     completo  = True
-            
+
             if completo == True:
                 frase = (r'\sum F_y = 0 \rightarrow R_a + R_b = ' +
                     str(self.soma_forcas_y) + r'\\')
@@ -301,17 +315,40 @@ class Eztrut:
 
             return frase
 
- 
+        def forca_z():
+            completo = False
+            dist_forcas = []
+            for forca in self.cargas:
+                if forca.tipo == 2:
+                    completo = True
+                    dist_forcas.append(forca)
+                    def gen():
+                        for forca in self.cargas:
+                            if forca.tipo == 2:
+                                yield forca
+
+            if completo == True:
+                dist_forca_apoio = []
+                for dist in dist_forcas:
+                    dist_forca_apoio.append(dist.x - self.apoios[0].x)
+                print("dist forca apoio", dist_forca_apoio)
+                frase = (r'\sum M_a = 0 \rightarrow ' )
+                for forca in gen():
+                    frase += (str(forca.x - self.apoios[0].x))
+                    frase += r' \cdot '
+                    frase += r'(' + str(forca.f) + r')'
+
+                frase += r' = R_b \cdot '
+                frase += r'(' + str(-self.apoios[1].reacao)+ r')'
+            else:
+                frase = r'\sum M = 0 \\'
+
+            return frase
+
+
         sums = Math(
-            r'\sum F_x = 0 \\' +
-            forca_x() + 
-            r'\sum F_y = 0 \rightarrow R_a + R_b = ' +
-            str(self.soma_forcas_y) + r'\\' +
-            r'\sum M_a = 0 \rightarrow R_b \dot ' +
-            str(self.dist) + r'\\'
+            forca_x() +
+            forca_y() +
+            forca_z()
         )
         return sums
-
-
-
-
