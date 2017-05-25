@@ -46,6 +46,37 @@ class Viga:
 # Tipo 3 = fixo em x, y elasticidade z (engastado)
 
 
+class Elemento:
+    """Cria um objeto da classe Elemento
+    Args:
+        L (float): tamanho da viga em metros
+        E (float): Módulo de elasticidade em MPa
+        I (float): Momento de inércia em metros à quarta
+        A (float): Área em m2
+    """
+
+    def __init__(self, L=1, E=20000, I=1, A=1):
+        self.E = E
+        self.I = I
+        self.L = L
+        self.A = A
+
+        # Matriz de rigidez
+        self.k = np.array([
+            [E*A/L, 0, 0, -E*A/L, 0, 0],
+            [0, 12*E*I/L**3, 6*E*I/L**2, 0, -12*E*I/L**3, 6*E*I/L**2],
+            [0, 6*E*I/L**2, 4*E*I/L, 0, -6*E*I/L**2, 2*E*I/L],
+            [-E*A/L, 0, 0, E*A/L, 0, 0],
+            [0, -12*E*I/L**3, -6*E*I/L**2, 0, 12*E*I/L**3, -6*E*I/L**2],
+            [0, 6*E*I/L**2, 2*E*I/L, 0, -6*E*I/L**2, 4*E*I/L]
+        ])
+
+    def __str__(self):
+        return ('Comprimento = ' + str(self.L) + " m, \n"
+                + 'Inercia = ' + str(self.I) + ' m^4, \n'
+                + 'Area = ' + str(self.A) + ' m^4, \n'
+                + 'Elasticidade = ' + str(self.E) + ' MPa \n')
+
 class Apoio:
     """Cria um objeto da classe Apoio
     Args:
