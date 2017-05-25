@@ -13,32 +13,30 @@ import matplotlib.pyplot as plt
 class Viga:
     """Cria um objeto da classe Viga
     Args:
-        comprimento (float): tamanho da viga em metros
-        elasticidade (float): Módulo de elasticidade em MPa
-        inercia (float): Momento de inércia em metros à quarta
-        area (float): Área em m2
+        L (float): tamanho da viga em metros
+        E (float): Módulo de E em MPa
+        I (float): Momento de inércia em metros à quarta
+        A (float): Área em m2
     """
 
-    def __init__(self, comprimento=1, elasticidade=20000, inercia=1, area=1):
-        self.elasticidade = elasticidade
-        self.inercia = inercia
-        self.comprimento = comprimento
-        self.area = area
+    def __init__(self, L=1, E=20000, I=1, A=1):
+        self.E = E
+        self.I = I
+        self.L = L
+        self.A = A
 
         # Matriz de rigidez
-        self.k = elasticidade * inercia / comprimento**3 * np.array([
-            [12., 6 * comprimento, -12, 6 * comprimento],
-            [6 * comprimento, 4 * comprimento**2, -
-                6 * comprimento, 2 * comprimento**2],
-            [-12, -6 * comprimento, 12, -6 * comprimento],
-            [6 * comprimento, 2 * comprimento**2, -
-                6 * comprimento, 4 * comprimento**2]
+        self.k = E * I / L**3 * np.array([
+            [12., 6 * L, -12, 6 * L],
+            [6 * L, 4 * L**2, -6 * L, 2 * L**2],
+            [-12, -6 * L, 12, -6 * L],
+            [6 * L, 2 * L**2, -6 * L, 4 * L**2]
         ])
 
     def __str__(self):
-        return ('Comprimento = ' + str(self.comprimento) + " m, \n"
-                + 'Inercia = ' + str(self.inercia) + ' m^4, \n'
-                + 'Elasticidade = ' + str(self.elasticidade) + ' MPa \n')
+        return ('L = ' + str(self.L) + " m, \n"
+                + 'Inercia = ' + str(self.I) + ' m^4, \n'
+                + 'Elasticidade = ' + str(self.E) + ' MPa \n')
 
 # Definicao da classe Nó
 # Tipo 1 = fixo em x (apoiado)
@@ -55,13 +53,16 @@ class Elemento:
         A (float): Área em m2
     """
 
-    def __init__(self, L=1, E=20000, I=1, A=1):
+    def __init__(self, L=1, E=20000, I=1, A=1, apoios=[]):
         self.E = E
         self.I = I
         self.L = L
         self.A = A
+        self.f = [0, 0, 0, 0, 0, 0]
+        self.apoioA = apoios[0]
+        self.apoioB = apoios[1]
 
-        # Matriz de rigidez
+            # Matriz de rigidez
         self.k = np.array([
             [E*A/L, 0, 0, -E*A/L, 0, 0],
             [0, 12*E*I/L**3, 6*E*I/L**2, 0, -12*E*I/L**3, 6*E*I/L**2],
@@ -70,6 +71,17 @@ class Elemento:
             [0, -12*E*I/L**3, -6*E*I/L**2, 0, 12*E*I/L**3, -6*E*I/L**2],
             [0, 6*E*I/L**2, 2*E*I/L, 0, -6*E*I/L**2, 4*E*I/L]
         ])
+
+
+    def solicitacao(self, carga):
+        if isinstance(carga, ForcaC):
+
+            return "forcaC"
+        elif isinstance(carga,ForcaD):
+            return "forcaD"
+        else:
+            return "forca invalida"
+
 
     def __str__(self):
         return ('Comprimento = ' + str(self.L) + " m, \n"
@@ -81,17 +93,23 @@ class Apoio:
     """Cria um objeto da classe Apoio
     Args:
         x (float): localizacao do apoio em relacao area ponta esquerda da viga
-        tipo (int): tipo do apoio
-            1 = fixo em x (apoiado)
-            2 = fixo em x elasticidade y (fixo)
-            3 = fixo em x, y elasticidade z (engastado)
+        # tipo (int): tipo do apoio
+        #     1 = fixo em x (apoiado)
+        #     2 = fixo em x elasticidade y (fixo)
+        #     3 = fixo em x, y elasticidade z (engastado)
+        eixos_restritos (int) = [x, y, z]
+            1 = restrito, 0 = livre
+            ex. Engastado = [1, 1, 1]
+
     """
 
-    def __init__(self, x, tipo=1):
+    def __init__(self, x, eixos_restritos=[0,1,0]):
         self.x = x
-        self.tipo = tipo
+        # self.tipo = tipo
+        self.eixos_restritos = eixos_restritos
         self.reacao = 0
         self.nome = ''
+        self.rotula = [0, 0] # caso haja rotula no comeco ou fim, trocar por 1
 
     def __cmp__(self, other):
         if hasattr(other, 'getKey'):
@@ -101,11 +119,11 @@ class Apoio:
         return self.x
 
     def __repr__(self):
-        return '{} {}: x = {}, tipo = {}, reacao = {}'.format(
+        return '{} {}: x = {}, eixo_restritos = {}, reacao = {}'.format(
             self.__class__.__name__,
             self.nome,
             self.x,
-            self.tipo,
+            self.eixos_restritos,
             self.reacao
         )
 
@@ -121,9 +139,10 @@ class ForcaC:
             3 = forca em z (momento)
     """
 
-    def __init__(self, f, x, tipo):
+    def __init__(self, f, x, tipo, eixo):
         self.f = f
         self.x = x
+        self.eixo = eixo
         self.tipo = tipo
 
 
@@ -166,6 +185,8 @@ class Eztrut:
         self.soma_forcas_x = 0
         self.soma_forcas_y = 0
         self.soma_forcas_z = 0
+        self.elementos = []
+        self.matriz_rigidez_global = np.array([])
 
         if self.estaticidade() > 3:
             print("! ------ERRO ------ ! \n" +
@@ -180,6 +201,7 @@ class Eztrut:
                 elif forca.tipo == 3:
                     self.soma_forcas_z += forca.f
 
+
     def __str__(self):
         return 'Viga = ' + str(self.viga) + " m, \n"
 
@@ -187,8 +209,9 @@ class Eztrut:
         """Retorna grau de estaticidade"""
         estaticidade = 0
         for apoio in self.apoios:
-            estaticidade = estaticidade + apoio.tipo
-        return estaticidade
+            for eixo in apoio.eixos_restritos:
+                estaticidade = estaticidade + eixo
+        return "Grau de estaticidade = ", estaticidade
 
     def plotagem_apoios(self):
         """Plota apoios"""
@@ -207,7 +230,7 @@ class Eztrut:
 
     def plotagem_viga(self):
         """Plota viga"""
-        plt.plot([0, self.viga.comprimento], [0, 0], linewidth=4, alpha=0.3)
+        plt.plot([0, self.viga.L], [0, 0], linewidth=4, alpha=0.3)
         plt.xlabel('x [m]')
         # plt.ylabel('Momento fletor [kNm]')
         plt.yticks([])
@@ -259,10 +282,120 @@ class Eztrut:
 
         return array_ordenado
 
+    def definir_elementos(self):
+        """ Retorna array separando a viga em varios elemntos conforme
+        levando em consideracao apenas os APOIOS"""
+        nos = [0]
+        # criar no para o fim da viga
+        nos.append(self.viga.L)
+        # criar no para cada apoio
+        for apoio in self.apoios:
+            nos.append(apoio.x)
+
+        nos_unicos = list(set(nos))
+        elementos = [(nos_unicos[i], nos_unicos[i+1]) for i in range(len(nos_unicos)-1)]
+
+        return elementos
+
+    def definir_trecho_entre_apoio(self):
+        """ Retorna array separando a viga em varios elemntos conforme
+        levando em consideracao apenas os APOIOS"""
+        # nos = []
+        # criar no para o fim da viga
+        # nos.append(self.viga.comprimento)
+        # criar no para cada apoio
+        # for apoio in self.apoios:
+            # nos.append(apoio.x)
+
+        # nos_unicos = list(set(nos))
+        trechos_entre_apoio = [(self.apoios[i], self.apoios[i+1]) for i in range(len(self.apoios)-1)]
+        return trechos_entre_apoio
+
+    def solicitaoes(self, elemento):
+        """ Verifica a existencia de forcas externas no elemento.
+        este metodo coloca as forcas equiivalentes nos apoios"""
+
+        ## TODO: NO MOMENTO SO FUNCIONA PARA CARGAS PONTUAIS
+        atuantes = []
+        for carga in self.cargas:
+            if elemento.apoioA.x <= carga.x <= elemento.apoioB.x:
+                atuantes.append(carga)
+                return "forca encontra-se dentro do intervalo do elemento", carga.f, carga.x
+
+        for carga in atuantes:
+            p = carga.f
+            l = elemento.apoioB.x - elemento.apoioA.x
+            a = carga.x - elemento.apoioA.x
+            b = l - a
+
+            # para ambos lados engastados
+            if (elemento.apoioaA.eixos_restritos[3] == 1) and (elemento.apoioB.eixos_restritos[3] == 1):
+                
+                # para forca vertical
+                if carga.tipo == 2:
+                    ma = p*a*(b**2)/(l**2)
+                    mb = -p*(a**2)*b/(l**2)
+                    va = p*(b**2)*(3*a+b)/(l**3)
+                    vb = p*(a**2)*(a+3*b)/(l**3)
+                
+                # para forca tipo momento
+                if carga.tipo == 3:
+                    ma = p*b*(2*a-b)/(l**2)
+                    mb = p*a*(2*b-a)/(l**2)
+                    va = 6*p*a*b/(l**3)
+                    vb = 6*p*a*b/(l**3)
+
+            elemento.f[0] += 0
+            elemento.f[1] += va
+            elemento.f[2] += ma
+            elemento.f[3] += 0
+            elemento.f[4] += vb
+            elemento.f[5] += mb
+
+
+    def criar_elementos(self):
+        trechos = self.definir_trecho_entre_apoio()
+        for trecho in trechos:
+            self.elementos.append(Elemento(
+                A = self.viga.A,
+                E = self.viga.E,
+                I = self.viga.I,
+                L = (trecho[1].x - trecho[0].x),
+                apoios = (trecho[0], trecho[1])
+            ))
+        return trechos
+
+    def gerar_matriz_rotacao(self, graus):
+        radianos = np.deg2rad(graus)
+        matriz_rotacao = np.array([
+            [np.cos(radianos), np.sin(radianos), 0, 0, 0, 0],
+            [-np.sin(radianos), np.cos(radianos), 0, 0, 0, 0],
+            [0,0, 1, 0, 0, 0],
+            [0, 0, 0, np.cos(radianos), np.sin(radianos), 0],
+            [0, 0, 0, -np.sin(radianos), np.cos(radianos),  0],
+            [0, 0, 0, 0, 0, 1],
+        ])
+
+        return matriz_rotacao
+
+    def coordenadas2comprimento(self, xi, yi, xf, yf):
+        l = np.sqrt((xf-xi)**2+(yf-yi)**2)
+        return l
+    
+    def determinar_angulo_barra(self, xi, yi, xf, yf):
+        delta_x = xf - xi
+        delta_y = yf - yi
+        tangente = delta_y / delta_x
+        radianos = np.arctan(tangente)
+        graus = np.rad2deg(radianos)
+
+        return graus
+        
+
     def definir_trechos(self):
         nos = [0]
         # criar no para o fim da viga
-        nos.append(self.viga.comprimento)
+        nos.append(self.viga.L)
         # criar no para cada apoio
         for apoio in self.apoios:
             nos.append(apoio.x)
@@ -276,7 +409,7 @@ class Eztrut:
                     nos.append(forca_d.x_f)
 
         nos_unicos = list(set(nos))
-        trechos = [(nos_unicos[i],nos_unicos[i+1]) for i in range(len(nos_unicos)-1)]
+        trechos = [(nos_unicos[i], nos_unicos[i+1]) for i in range(len(nos_unicos)-1)]
 
         return trechos
 
@@ -362,7 +495,7 @@ class Eztrut:
                 dist_forca_apoio = []
                 for dist in dist_forcas:
                     dist_forca_apoio.append(dist.x - self.apoios[0].x)
-                print("dist forca apoio", dist_forca_apoio)
+                # print("dist forca apoio", dist_forca_apoio)
                 frase = (r'\sum M_a = 0 \rightarrow ' )
                 for forca in gen():
                     frase += (str(forca.x - self.apoios[0].x))
