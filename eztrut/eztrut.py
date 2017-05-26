@@ -6,6 +6,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+import itertools
 
 # Definir class Viga
 
@@ -126,6 +127,44 @@ class Apoio:
             self.eixos_restritos,
             self.reacao
         )
+
+class No:
+    """Cria um objeto da classe No
+    Args:
+        x (float): coordenada x do no
+        y (float): coordenada y do no
+        deslocamento [eixo x, eixo y, eixo z], onde:
+            0 = livre
+            1 = fixo
+            2 = mola
+            3 = recalque
+    """
+
+    def __init__(self, x, y, deslocamento):
+        self.id = 0
+        self.x = x
+        self.y = y
+        self.deslocalemento = deslocamento
+
+class Barra:
+    """Cria um objeto da classe Barra
+    Args:
+        no inicial (int): id do no inicial
+        no final (int): id do no final
+        rotula inicial (int): 1 = sim, 0 = nao
+        rotula final (int): 1 = sim, 0 = nao
+        E (float): Módulo de elasticidade em MPa
+        I (float): Momento de inércia em metros à quarta
+        A (float): Área em m2
+    """
+
+    def __init__(self, no_i, no_f, ro_i, ro_f, E, A, I):
+        self.nome = ""
+        self.x = x
+        self.y = y
+        self.deslocalemento = deslocamento
+
+
 
 
 class ForcaC:
@@ -266,6 +305,21 @@ class Eztrut:
         self.plotagem_forcasC()
         plt.margins(0.2, 0)
         plt.show()
+
+    def ordenar_nos(self, nos_array):
+        """Retorna uma lista ordenada em funcao de X (posicao) e da nome aos apoios"""
+
+        def getKey(elemento):
+            return elemento.x
+
+        array_ordenado = sorted(nos_array, key=getKey)
+        indice = 1
+
+        for no in array_ordenado:
+            no.id = indice
+            indice += 1
+
+        return array_ordenado
 
     def ordenar_apoios(self, apoios_array):
         """Retorna uma lista ordenada em funcao de X (posicao) e da nome aos apoios"""
